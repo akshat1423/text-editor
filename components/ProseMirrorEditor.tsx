@@ -357,19 +357,15 @@ export const ProseMirrorEditor = forwardRef<ProseMirrorEditorHandle, ProseMirror
         plugins: [
              ...exampleSetup({ schema: mySchema, menuBar: false, floatingMenu: false }),
              keymap({
-                "Mod-Enter": (state, dispatch) => {
-                    onShortcutRef.current?.('generate');
-                    return true;
-                },
                 "Mod-b": (state, dispatch) => {
                     // Toggle bold (strong)
-                    const mark = mySchema.marks['strong'] || mySchema.marks['bold'];
+                    const mark = mySchema.marks['strong'];
                     if (mark) { toggleMark(mark)(state, dispatch); return true; }
                     return false;
                 },
                 "Mod-i": (state, dispatch) => {
                     // Toggle italic (em)
-                    const mark = mySchema.marks['em'] || mySchema.marks['italic'];
+                    const mark = mySchema.marks['em'];
                     if (mark) { toggleMark(mark)(state, dispatch); return true; }
                     return false;
                 },
@@ -493,7 +489,7 @@ export const ProseMirrorEditor = forwardRef<ProseMirrorEditorHandle, ProseMirror
                         setButtonPos(prev => ({ ...prev, visible: false }));
                     }}
                     className="group relative flex items-center justify-center p-1.5 rounded-full bg-white dark:bg-slate-800 shadow-lg border border-indigo-100 dark:border-indigo-900/50 hover:border-indigo-300 transition-all duration-300 hover:scale-110"
-                    title="Continue writing (Ctrl+Enter)"
+                    title="Continue writing"
                 >
                     <div className="absolute inset-0 rounded-full bg-indigo-50 dark:bg-indigo-900/30 opacity-0 group-hover:opacity-100 transition-opacity" />
                     <Sparkles className="w-4 h-4 text-indigo-500 fill-indigo-50 dark:fill-indigo-900" />

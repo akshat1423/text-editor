@@ -272,47 +272,21 @@ const App: React.FC = () => {
       }
   };
 
-  // Global keyboard fallback: if editor is NOT focused, allow Mod+Enter to trigger generate
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        const editorDom = editorRef.current?.view?.dom as HTMLElement | undefined;
-        const active = document.activeElement as HTMLElement | null;
-        const editorHasFocus = editorDom ? editorDom.contains(active) : false;
-        if (!editorHasFocus) {
-          // eslint-disable-next-line no-console
-          console.log('[Global] Mod+Enter pressed (editor not focused)');
-          e.preventDefault();
-          handleEditorShortcut('generate');
-        }
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
-  // Override replaceRange logic for cycling
   const safeCycle = (direction: 'next' | 'prev') => {
       if (!state.matches('reviewing')) return;
       
       const { candidates, selectedIndex, generationRange } = state.context;
       if (candidates.length <= 1 || !generationRange) return;
       
-      // Calculate next index
       const nextIdx = direction === 'next' 
         ? (selectedIndex + 1) % candidates.length 
         : (selectedIndex - 1 + candidates.length) % candidates.length;
       const nextText = candidates[nextIdx];
       
-      // CRITICAL: Use the current generationRange to know what to replace
-      // The range was set/updated to match the currently displayed variant
       const fromPos = generationRange.from;
       const toPos = generationRange.to;
       
-      // Perform replacement
       editorRef.current?.replaceRange(fromPos, toPos, nextText);
-      
-      // Update state machine (will update selectedIndex and generationRange for next cycle)
       send({ type: direction === 'next' ? 'NEXT_VARIANT' : 'PREV_VARIANT' });
   };
 
@@ -452,7 +426,6 @@ const App: React.FC = () => {
                 </button>
                 <div className="absolute top-full right-0 mt-2 w-56 p-3 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                     <div className="text-xs font-semibold text-slate-900 dark:text-white mb-2 pb-2 border-b border-slate-100 dark:border-slate-700">Keyboard Shortcuts</div>
-                    <ShortcutTooltip shortcut="Ctrl+Enter" description="Continue writing" />
                     <ShortcutTooltip shortcut="Ctrl+1" description="Write 1 sentence" />
                     <ShortcutTooltip shortcut="Ctrl+2" description="Write paragraph" />
                     <ShortcutTooltip shortcut="Ctrl+[ / ]" description="Cycle variants (Review)" />
