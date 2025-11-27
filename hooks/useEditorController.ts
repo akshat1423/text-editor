@@ -236,4 +236,6 @@ export function useEditorController() {
   };
 }
 
+export type EditorController = ReturnType<typeof useEditorController>;
+
 export default useEditorController;
