@@ -1,0 +1,5 @@
+{
+  "name": "Chronicle AI Editor",
+  "description": "An AI-assisted text editor powered by Gemini, ProseMirror, and XState.",
+  "requestFramePermissions": []
+}

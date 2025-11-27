@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chronicle AI Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              slate: {
+                850: '#1e293b', 
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      /* ProseMirror Core Styles */
+      .ProseMirror {
+        position: relative;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+        white-space: break-spaces;
+        outline: none;
+        min-height: 300px;
+        font-variant-ligatures: none;
+        font-feature-settings: "liga" 0;
+        padding-bottom: 100px;
+      }
+      
+      .ProseMirror p {
+        margin-bottom: 1em;
+        line-height: 1.8; /* Increased for better reading */
+      }
+
+      /* Placeholder simulation */
+      .ProseMirror p.is-editor-empty:first-child::before {
+        content: attr(data-placeholder);
+        float: left;
+        color: #9ca3af;
+        pointer-events: none;
+        height: 0;
+      }
+
+      /* AI Generation Mode */
+      .ai-generating {
+        caret-color: transparent;
+      }
+
+      /* Animations */
+      @keyframes shimmer-bg {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+
+      @keyframes fade-in-up {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .animate-fade-in-up {
+        animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+
+      .magic-cursor {
+        position: fixed;
+        width: 3px;
+        background: linear-gradient(180deg, #6366f1, #a855f7, #ec4899);
+        background-size: 100% 200%;
+        animation: shimmer-bg 2s ease infinite;
+        pointer-events: none;
+        z-index: 50;
+        border-radius: 4px;
+        transition: top 0.08s cubic-bezier(0.2, 0, 0.2, 1), left 0.08s cubic-bezier(0.2, 0, 0.2, 1), height 0.1s;
+        box-shadow: 0 0 12px rgba(168, 85, 247, 0.6);
+      }
+
+      .btn-shimmer {
+        background: linear-gradient(45deg, #4f46e5, #7c3aed, #db2777, #4f46e5);
+        background-size: 300% 300%;
+        animation: shimmer-bg 3s ease infinite;
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1; 
+        border-radius: 4px;
+      }
+      .dark ::-webkit-scrollbar-thumb {
+        background: #475569; 
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8; 
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "prosemirror-view": "https://aistudiocdn.com/prosemirror-view@^1.41.3",
+    "prosemirror-model": "https://aistudiocdn.com/prosemirror-model@^1.25.4",
+    "prosemirror-commands": "https://aistudiocdn.com/prosemirror-commands@^1.7.1",
+    "prosemirror-schema-basic": "https://aistudiocdn.com/prosemirror-schema-basic@^1.2.4",
+    "prosemirror-history": "https://aistudiocdn.com/prosemirror-history@^1.5.0",
+    "@xstate/react": "https://aistudiocdn.com/@xstate/react@^6.0.0",
+    "xstate": "https://aistudiocdn.com/xstate@^5.24.0",
+    "prosemirror-schema-list": "https://aistudiocdn.com/prosemirror-schema-list@^1.5.1",
+    "prosemirror-state": "https://aistudiocdn.com/prosemirror-state@^1.4.4",
+    "prosemirror-keymap": "https://aistudiocdn.com/prosemirror-keymap@^1.2.3",
+    "prosemirror-example-setup": "https://aistudiocdn.com/prosemirror-example-setup@^1.2.3"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 antialiased h-screen overflow-hidden transition-colors duration-300">
+    <div id="root" class="h-full flex flex-col"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
