@@ -426,11 +426,15 @@ export const ProseMirrorEditor = forwardRef<ProseMirrorEditorHandle, ProseMirror
       const handleKeyDown = (event: KeyboardEvent) => {
           if (!viewRef.current) return;
           if (event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+              event.preventDefault();
               try {
                   const coords = viewRef.current.coordsAtPos(viewRef.current.state.selection.head);
                   onSlashTriggerRef.current?.({ x: coords.left, y: coords.bottom + 6 });
               } catch (e) {}
-          } else if (event.key === 'Escape') {
+              return;
+          }
+
+          if (event.key === 'Escape') {
               onSlashDismissRef.current?.();
           }
       };

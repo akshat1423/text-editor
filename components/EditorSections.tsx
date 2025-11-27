@@ -174,13 +174,14 @@ const ImagePreviewPanel: React.FC<{
     ? 'bg-slate-900/70 border-slate-800 text-slate-100'
     : 'bg-white border-slate-100 text-slate-800';
 
+  const hasInserted = imagePanel.status === 'ready' && imagePanel.inserted;
   const statusLabel = {
-    loading: 'Generating illustration via Freepik Mystic...',
-    ready: 'Preview ready — insert directly into the document when you are happy with it.',
+    loading: 'Searching Pexels for a fitting visual...',
+    ready: hasInserted ? 'Image inserted into the document. Insert again or dismiss below.' : 'Preview ready — click Insert image to add it to the document.',
     error: 'We were unable to fetch an image for this request.',
   } as const;
 
-  const shortTaskId = imagePanel.taskId ? `${imagePanel.taskId.slice(0, 6)}...${imagePanel.taskId.slice(-4)}` : null;
+  const keywordsLabel = imagePanel.meta?.keywords?.length ? imagePanel.meta.keywords.join(', ') : null;
 
   return (
     <div className="mt-8">
@@ -190,9 +191,6 @@ const ImagePreviewPanel: React.FC<{
             <p className="text-sm font-semibold">Image preview</p>
             <p className="text-xs text-slate-500 dark:text-slate-400">{statusLabel[imagePanel.status]}</p>
           </div>
-          {shortTaskId && (
-            <span className="text-[10px] uppercase tracking-wide text-slate-400">Task {shortTaskId}</span>
-          )}
         </div>
 
         <div className={`rounded-xl border overflow-hidden ${settings.darkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-100 bg-slate-50'}`}>
@@ -210,6 +208,48 @@ const ImagePreviewPanel: React.FC<{
           )}
         </div>
 
+        {(keywordsLabel || imagePanel.meta?.query) && (
+          <div className="mt-3 text-xs text-slate-500 dark:text-slate-400 space-y-1">
+            {keywordsLabel && (
+              <p>
+                <span className="font-semibold text-slate-600 dark:text-slate-200">Keywords:</span> {keywordsLabel}
+              </p>
+            )}
+            {imagePanel.meta?.query && (
+              <p>
+                <span className="font-semibold text-slate-600 dark:text-slate-200">Query:</span> {imagePanel.meta.query}
+              </p>
+            )}
+          </div>
+        )}
+
+        {imagePanel.status === 'ready' && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+            <div>
+              {imagePanel.meta?.photographer ? (
+                <>
+                  Photo by{' '}
+                  {imagePanel.meta.photographerUrl ? (
+                    <a href={imagePanel.meta.photographerUrl} target="_blank" rel="noreferrer" className="underline">
+                      {imagePanel.meta.photographer}
+                    </a>
+                  ) : (
+                    imagePanel.meta.photographer
+                  )}{' '}
+                  on Pexels
+                </>
+              ) : (
+                <span>Powered by Pexels</span>
+              )}
+            </div>
+            {imagePanel.meta?.sourceUrl && (
+              <a href={imagePanel.meta.sourceUrl} target="_blank" rel="noreferrer" className="text-indigo-500 hover:text-indigo-400 font-medium">
+                Open on Pexels
+              </a>
+            )}
+          </div>
+        )}
+
         <div className="flex flex-wrap justify-end gap-2 mt-4">
           <button
             onClick={dismissImagePanel}
@@ -223,7 +263,7 @@ const ImagePreviewPanel: React.FC<{
               onClick={insertGeneratedImage}
               className="px-4 py-2 text-sm font-semibold rounded-full bg-indigo-600 text-white hover:bg-indigo-500 shadow"
             >
-              Insert image
+              {hasInserted ? 'Insert again' : 'Insert image'}
             </button>
           )}
 

@@ -1,16 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMachine } from '@xstate/react';
 import { editorMachine } from '../machines/editorMachine';
-import { generateVariants, generateTitleFromContent } from '../services/geminiService';
-import { generateMysticImageFromContext } from '../services/freepikService';
+import { generateVariants, generateTitleFromContent, summarizeContentToKeywords } from '../services/geminiService';
+import { searchPexelsImage } from '../services/pexelsService';
 import { UserSettings, GenerationMode } from '../types';
 import type { ProseMirrorEditorHandle } from '../components/ProseMirrorEditor';
 
+type ImagePanelMeta = {
+  keywords?: string[];
+  query?: string;
+  alt?: string;
+  sourceUrl?: string;
+  photographer?: string;
+  photographerUrl?: string;
+};
+
 type ImagePanelState =
-  | { status: 'idle'; prompt?: string; imageUrl?: string; taskId?: string; error?: string }
-  | { status: 'loading'; prompt: string; imageUrl?: string; taskId?: string; error?: string }
-  | { status: 'ready'; prompt: string; imageUrl: string; taskId?: string; error?: string }
-  | { status: 'error'; prompt: string; imageUrl?: string; taskId?: string; error: string };
+  | { status: 'idle'; prompt?: string; imageUrl?: string; meta?: ImagePanelMeta; error?: string; inserted?: boolean }
+  | { status: 'loading'; prompt: string; imageUrl?: string; meta?: ImagePanelMeta; error?: string; inserted?: boolean }
+  | { status: 'ready'; prompt: string; imageUrl: string; meta: ImagePanelMeta; inserted?: boolean }
+  | { status: 'error'; prompt: string; error: string; meta?: ImagePanelMeta; inserted?: boolean };
 
 const initialImagePanel: ImagePanelState = { status: 'idle' };
 
@@ -152,8 +161,33 @@ export function useEditorController() {
 
     setImagePanel({ status: 'loading', prompt: plain });
     try {
-      const { imageUrl, taskId } = await generateMysticImageFromContext(plain);
-      setImagePanel({ status: 'ready', prompt: plain, imageUrl, taskId });
+      const keywords = await summarizeContentToKeywords(plain);
+      const fallbackQuery = plain.split(/\s+/).filter(Boolean).slice(0, 6).join(' ');
+      const query = (keywords || []).join(' ') || fallbackQuery;
+      const photo = await searchPexelsImage(query);
+      let inserted = false;
+      if (photo.imageUrl) {
+        try {
+          editorRef.current?.insertImage(photo.imageUrl);
+          inserted = true;
+        } catch (err) {
+          console.error('Failed to insert image automatically', err);
+        }
+      }
+      setImagePanel({
+        status: 'ready',
+        prompt: plain,
+        imageUrl: photo.imageUrl,
+        meta: {
+          keywords,
+          query,
+          alt: photo.alt,
+          sourceUrl: photo.sourceUrl,
+          photographer: photo.photographer,
+          photographerUrl: photo.photographerUrl,
+        },
+        inserted,
+      });
     } catch (error: any) {
       const message = error?.message || 'Failed to generate image';
       setImagePanel({ status: 'error', prompt: plain, error: message });
@@ -163,7 +197,9 @@ export function useEditorController() {
   const insertGeneratedImage = () => {
     if (imagePanel.status !== 'ready' || !imagePanel.imageUrl) return;
     editorRef.current?.insertImage(imagePanel.imageUrl);
-    setImagePanel(initialImagePanel);
+    setImagePanel(prev => (
+      prev.status === 'ready' ? { ...prev, inserted: true } : prev
+    ));
   };
 
   const dismissImagePanel = () => setImagePanel(initialImagePanel);

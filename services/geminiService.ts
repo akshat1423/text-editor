@@ -124,3 +124,38 @@ export const generateTitleFromContent = async (content: string): Promise<string>
   const title = String(raw || '').split(/\r?\n/)[0].trim();
   return title;
 };
+
+export const summarizeContentToKeywords = async (content: string): Promise<string[]> => {
+  ensureApiKey();
+  const trimmed = content.trim();
+  if (!trimmed) {
+    throw new Error('Cannot summarize empty content.');
+  }
+
+  const model = 'gemini-2.5-flash';
+  const prompt = `Summarize the following document into the three most descriptive keywords. Respond ONLY with a single comma-separated line like: keyword one, keyword two, keyword three.\n\nDocument:\n${trimmed}`;
+
+  const res = await ai.models.generateContent({
+    model,
+    contents: prompt,
+    config: { temperature: 0.1 }
+  } as any);
+
+  const raw = (res as any).text || (res as any)?.response?.candidates?.[0]?.text || '';
+  const tokens = raw
+    .split(/[,\n]/)
+    .map(token => token.replace(/^[#*\-]+/, '').trim())
+    .filter(Boolean);
+
+  if (tokens.length === 0) {
+    const fallback = trimmed
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 3)
+      .map(word => word.replace(/[^a-z0-9-]/gi, ''))
+      .filter(Boolean);
+    return fallback.length ? fallback : ['inspiration'];
+  }
+
+  return tokens.slice(0, 3);
+};
