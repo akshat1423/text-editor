@@ -102,7 +102,7 @@ interface ProseMirrorEditorProps {
     isReadOnly?: boolean;
     isGenerating?: boolean;
     isReviewing?: boolean;
-    onShortcut?: (action: 'generate' | 'line' | 'paragraph' | 'prev' | 'next') => void;
+    onShortcut?: (action: 'generate' | 'line' | 'paragraph' | 'prev' | 'next' | 'image') => void;
     onInteraction?: () => void; // Called when user types or clicks, to clear review state
     onContentChange?: (content: string) => void;
     onSlashTrigger?: (coords: { x: number; y: number }) => void;
@@ -443,6 +443,10 @@ export const ProseMirrorEditor = forwardRef<ProseMirrorEditorHandle, ProseMirror
                 },
                 "Mod-2": (state, dispatch) => {
                     onShortcutRef.current?.('paragraph');
+                    return true;
+                },
+                "Mod-3": (state, dispatch) => {
+                    onShortcutRef.current?.('image');
                     return true;
                 },
                 "Mod-[": (state, dispatch) => {

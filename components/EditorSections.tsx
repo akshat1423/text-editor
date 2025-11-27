@@ -68,7 +68,9 @@ export const HeaderSection: React.FC<{ controller: EditorController }> = ({ cont
                 <div className="text-xs font-semibold text-slate-900 dark:text-white mb-2 pb-2 border-b border-slate-100 dark:border-slate-700">Keyboard Shortcuts</div>
                 <ShortcutTooltip shortcut="Ctrl+1" description="Write 1 sentence" />
                 <ShortcutTooltip shortcut="Ctrl+2" description="Write paragraph" />
+                <ShortcutTooltip shortcut="Ctrl+3" description="Generate image" />
                 <ShortcutTooltip shortcut="Ctrl+[ / ]" description="Cycle variants (Review)" />
+                <ShortcutTooltip shortcut="/" description="Open slash menu" />
               </div>
             </div>
 

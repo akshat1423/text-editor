@@ -104,13 +104,14 @@ export function useEditorController() {
     isStreamingRef.current = false; streamFinishedRef.current = true; streamQueueRef.current = []; stopTypewriter(); send({ type: 'STOP' });
   };
 
-  const handleEditorShortcut = (action: 'generate' | 'line' | 'paragraph' | 'prev' | 'next') => {
+  const handleEditorShortcut = (action: 'generate' | 'line' | 'paragraph' | 'prev' | 'next' | 'image') => {
     switch(action) {
       case 'generate': if (state.matches('generating')) handleStop(); else handleGenerate('continue'); break;
       case 'line': handleGenerate('line'); break;
       case 'paragraph': handleGenerate('paragraph'); break;
       case 'prev': if (state.matches('reviewing')) safeCycle('prev'); break;
       case 'next': if (state.matches('reviewing')) safeCycle('next'); break;
+      case 'image': handleGenerateImage(); break;
     }
   };
 
