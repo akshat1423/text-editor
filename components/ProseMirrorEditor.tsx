@@ -21,16 +21,35 @@ const baseNodes = addListNodes(basicSchema.spec.nodes as any, "paragraph block*"
 // Add an image node
 baseNodes.image = {
     inline: true,
-    attrs: { src: {}, alt: { default: null }, title: { default: null } },
+    attrs: {
+        src: {},
+        alt: { default: null },
+        title: { default: null },
+        placeholderId: { default: null },
+    },
     group: "inline",
     draggable: true,
     parseDOM: [{
         tag: "img[src]",
         getAttrs(dom: any) {
-            return { src: dom.getAttribute('src'), title: dom.getAttribute('title'), alt: dom.getAttribute('alt') };
+            return {
+                src: dom.getAttribute('src'),
+                title: dom.getAttribute('title'),
+                alt: dom.getAttribute('alt'),
+                placeholderId: dom.getAttribute('data-placeholder-id') || null,
+            };
         }
     }],
-    toDOM(node: any) { return ["img", node.attrs]; }
+    toDOM(node: any) {
+        const attrs = { ...node.attrs } as any;
+        if (attrs.placeholderId) {
+            attrs['data-placeholder-id'] = attrs.placeholderId;
+            delete attrs.placeholderId;
+        } else {
+            delete attrs.placeholderId;
+        }
+        return ["img", attrs];
+    }
 } as NodeSpec;
 
 // Extend marks: add strike and subscript
@@ -95,7 +114,9 @@ export interface ProseMirrorEditorHandle {
   insertText: (text: string) => void;
   replaceRange: (from: number, to: number, text: string) => void;
     toggleMark: (markName: string) => void;
-    insertImage: (url: string) => void;
+        insertImage: (url: string, attrs?: { alt?: string; title?: string; placeholderId?: string }) => void;
+        replaceImagePlaceholder: (placeholderId: string, nextSrc: string) => boolean;
+        removeImagePlaceholder: (placeholderId: string) => boolean;
     toggleBlockquote: () => void;
     toggleBulletList: () => void;
     toggleOrderedList: () => void;
@@ -243,15 +264,62 @@ export const ProseMirrorEditor = forwardRef<ProseMirrorEditorHandle, ProseMirror
           toggleMark(mark)(view.state, view.dispatch);
           view.focus();
       },
-      insertImage: (url: string) => {
+      insertImage: (url: string, attrs: { alt?: string; title?: string; placeholderId?: string } = {}) => {
           const view = viewRef.current;
           if (!view) return;
           const { state, dispatch } = view;
-          const node = mySchema.nodes.image.create({ src: url, alt: '', title: '' });
+          const nodeAttrs = {
+              src: url,
+              alt: attrs.alt ?? '',
+              title: attrs.title ?? '',
+              placeholderId: attrs.placeholderId ?? null,
+          };
+          const node = mySchema.nodes.image.create(nodeAttrs);
           const tr = state.tr.replaceSelectionWith(node).scrollIntoView();
           dispatch(tr);
           view.focus();
       },
+            replaceImagePlaceholder: (placeholderId: string, nextSrc: string) => {
+                const view = viewRef.current;
+                if (!view || !placeholderId) return false;
+                let found = false;
+                let tr = view.state.tr;
+                view.state.doc.descendants((node, pos) => {
+                    if (found) return false;
+                    if (node.type === mySchema.nodes.image && node.attrs.placeholderId === placeholderId) {
+                        const newAttrs = { ...node.attrs, src: nextSrc, placeholderId: null };
+                        tr = tr.setNodeMarkup(pos, undefined, newAttrs);
+                        found = true;
+                        return false;
+                    }
+                    return true;
+                });
+                if (found) {
+                    view.dispatch(tr.scrollIntoView());
+                    view.focus();
+                }
+                return found;
+            },
+            removeImagePlaceholder: (placeholderId: string) => {
+                const view = viewRef.current;
+                if (!view || !placeholderId) return false;
+                let found = false;
+                let tr = view.state.tr;
+                view.state.doc.descendants((node, pos) => {
+                    if (found) return false;
+                    if (node.type === mySchema.nodes.image && node.attrs.placeholderId === placeholderId) {
+                        tr = tr.delete(pos, pos + node.nodeSize);
+                        found = true;
+                        return false;
+                    }
+                    return true;
+                });
+                if (found) {
+                    view.dispatch(tr.scrollIntoView());
+                    view.focus();
+                }
+                return found;
+            },
             toggleBlockquote,
             toggleBulletList: () => toggleListType('bullet_list'),
             toggleOrderedList: () => toggleListType('ordered_list'),

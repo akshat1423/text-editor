@@ -108,9 +108,6 @@ export const EditorSurface: React.FC<{ controller: EditorController }> = ({ cont
     handleRedo,
     charCount,
     wordCount,
-    imagePanel,
-    insertGeneratedImage,
-    dismissImagePanel,
   } = controller;
 
   return (
@@ -150,141 +147,8 @@ export const EditorSurface: React.FC<{ controller: EditorController }> = ({ cont
           </div>
         </div>
 
-        <ImagePreviewPanel
-          controller={controller}
-          imagePanel={imagePanel}
-          insertGeneratedImage={insertGeneratedImage}
-          dismissImagePanel={dismissImagePanel}
-        />
       </div>
     </main>
-  );
-};
-
-const ImagePreviewPanel: React.FC<{
-  controller: EditorController;
-  imagePanel: EditorController['imagePanel'];
-  insertGeneratedImage: () => void;
-  dismissImagePanel: () => void;
-}> = ({ controller, imagePanel, insertGeneratedImage, dismissImagePanel }) => {
-  const { settings, handleGenerateImage } = controller;
-  if (!imagePanel || imagePanel.status === 'idle') return null;
-
-  const cardClasses = settings.darkMode
-    ? 'bg-slate-900/70 border-slate-800 text-slate-100'
-    : 'bg-white border-slate-100 text-slate-800';
-
-  const hasInserted = imagePanel.status === 'ready' && imagePanel.inserted;
-  const statusLabel = {
-    loading: 'Searching Pexels for a fitting visual...',
-    ready: hasInserted ? 'Image inserted into the document. Insert again or dismiss below.' : 'Preview ready — click Insert image to add it to the document.',
-    error: 'We were unable to fetch an image for this request.',
-  } as const;
-
-  const keywordsLabel = imagePanel.meta?.keywords?.length ? imagePanel.meta.keywords.join(', ') : null;
-
-  return (
-    <div className="mt-8">
-      <div className={`rounded-2xl border p-5 shadow-sm ${cardClasses}`}>
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div>
-            <p className="text-sm font-semibold">Image preview</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">{statusLabel[imagePanel.status]}</p>
-          </div>
-        </div>
-
-        <div className={`rounded-xl border overflow-hidden ${settings.darkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-100 bg-slate-50'}`}>
-          {imagePanel.status === 'loading' && (
-            <div className="image-skeleton h-64 w-full" aria-live="polite" aria-label="Generating image" />
-          )}
-          {imagePanel.status === 'ready' && imagePanel.imageUrl && (
-            <img src={imagePanel.imageUrl} alt="Generated illustration" className="w-full h-64 object-cover" loading="lazy" />
-          )}
-          {imagePanel.status === 'error' && (
-            <div className="h-64 flex flex-col items-center justify-center text-sm text-red-500 gap-2">
-              <span>{imagePanel.error}</span>
-              <span className="text-xs text-red-400">Review the prompt and try again.</span>
-            </div>
-          )}
-        </div>
-
-        {(keywordsLabel || imagePanel.meta?.query) && (
-          <div className="mt-3 text-xs text-slate-500 dark:text-slate-400 space-y-1">
-            {keywordsLabel && (
-              <p>
-                <span className="font-semibold text-slate-600 dark:text-slate-200">Keywords:</span> {keywordsLabel}
-              </p>
-            )}
-            {imagePanel.meta?.query && (
-              <p>
-                <span className="font-semibold text-slate-600 dark:text-slate-200">Query:</span> {imagePanel.meta.query}
-              </p>
-            )}
-          </div>
-        )}
-
-        {imagePanel.status === 'ready' && (
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
-            <div>
-              {imagePanel.meta?.photographer ? (
-                <>
-                  Photo by{' '}
-                  {imagePanel.meta.photographerUrl ? (
-                    <a href={imagePanel.meta.photographerUrl} target="_blank" rel="noreferrer" className="underline">
-                      {imagePanel.meta.photographer}
-                    </a>
-                  ) : (
-                    imagePanel.meta.photographer
-                  )}{' '}
-                  on Pexels
-                </>
-              ) : (
-                <span>Powered by Pexels</span>
-              )}
-            </div>
-            {imagePanel.meta?.sourceUrl && (
-              <a href={imagePanel.meta.sourceUrl} target="_blank" rel="noreferrer" className="text-indigo-500 hover:text-indigo-400 font-medium">
-                Open on Pexels
-              </a>
-            )}
-          </div>
-        )}
-
-        <div className="flex flex-wrap justify-end gap-2 mt-4">
-          <button
-            onClick={dismissImagePanel}
-            className={`px-4 py-2 text-sm font-medium rounded-full border ${settings.darkMode ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-100'}`}
-          >
-            Dismiss
-          </button>
-
-          {imagePanel.status === 'ready' && (
-            <button
-              onClick={insertGeneratedImage}
-              className="px-4 py-2 text-sm font-semibold rounded-full bg-indigo-600 text-white hover:bg-indigo-500 shadow"
-            >
-              {hasInserted ? 'Insert again' : 'Insert image'}
-            </button>
-          )}
-
-          {imagePanel.status === 'error' && (
-            <button
-              onClick={handleGenerateImage}
-              className="px-4 py-2 text-sm font-semibold rounded-full bg-red-500 text-white hover:bg-red-400 shadow"
-            >
-              Try again
-            </button>
-          )}
-
-          {imagePanel.status === 'loading' && (
-            <div className="flex items-center text-xs font-medium text-indigo-500">
-              <Sparkles className="w-4 h-4 mr-1 animate-spin" />
-              Summoning art...
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
   );
 };
 

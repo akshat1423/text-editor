@@ -6,22 +6,7 @@ import { searchPexelsImage } from '../services/pexelsService';
 import { UserSettings, GenerationMode } from '../types';
 import type { ProseMirrorEditorHandle } from '../components/ProseMirrorEditor';
 
-type ImagePanelMeta = {
-  keywords?: string[];
-  query?: string;
-  alt?: string;
-  sourceUrl?: string;
-  photographer?: string;
-  photographerUrl?: string;
-};
-
-type ImagePanelState =
-  | { status: 'idle'; prompt?: string; imageUrl?: string; meta?: ImagePanelMeta; error?: string; inserted?: boolean }
-  | { status: 'loading'; prompt: string; imageUrl?: string; meta?: ImagePanelMeta; error?: string; inserted?: boolean }
-  | { status: 'ready'; prompt: string; imageUrl: string; meta: ImagePanelMeta; inserted?: boolean }
-  | { status: 'error'; prompt: string; error: string; meta?: ImagePanelMeta; inserted?: boolean };
-
-const initialImagePanel: ImagePanelState = { status: 'idle' };
+const PLACEHOLDER_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 
 export function useEditorController() {
   const [state, send] = useMachine(editorMachine);
@@ -41,7 +26,8 @@ export function useEditorController() {
     try { return localStorage.getItem('chronicle-font') || 'raleway'; } catch (e) { return 'raleway'; }
   });
   const [slashMenu, setSlashMenu] = useState<{ visible: boolean; x: number; y: number }>({ visible: false, x: 0, y: 0 });
-  const [imagePanel, setImagePanel] = useState<ImagePanelState>(initialImagePanel);
+  const [isImageLoading, setIsImageLoading] = useState(false);
+  const placeholderIdRef = useRef<string | null>(null);
 
   // Streaming Refs
   const isStreamingRef = useRef(false);
@@ -150,6 +136,7 @@ export function useEditorController() {
   const handleRedo = () => editorRef.current?.redo();
 
   const handleGenerateImage = async () => {
+    if (isImageLoading) return;
     hideSlashMenu();
     const html = editorRef.current?.getContent() || '';
     const temp = document.createElement('div'); temp.innerHTML = html;
@@ -159,50 +146,36 @@ export function useEditorController() {
       return;
     }
 
-    setImagePanel({ status: 'loading', prompt: plain });
+    if (!editorRef.current) return;
+
+    setIsImageLoading(true);
+    const placeholderId = crypto.randomUUID ? crypto.randomUUID() : `placeholder-${Date.now()}`;
+    placeholderIdRef.current = placeholderId;
+    editorRef.current.insertImage(PLACEHOLDER_PIXEL, {
+      alt: 'Generating illustrative image',
+      placeholderId,
+    });
+
     try {
       const keywords = await summarizeContentToKeywords(plain);
       const fallbackQuery = plain.split(/\s+/).filter(Boolean).slice(0, 6).join(' ');
       const query = (keywords || []).join(' ') || fallbackQuery;
       const photo = await searchPexelsImage(query);
-      let inserted = false;
-      if (photo.imageUrl) {
-        try {
-          editorRef.current?.insertImage(photo.imageUrl);
-          inserted = true;
-        } catch (err) {
-          console.error('Failed to insert image automatically', err);
-        }
+      const replaced = photo.imageUrl && editorRef.current.replaceImagePlaceholder(placeholderId, photo.imageUrl);
+      if (!replaced && photo.imageUrl) {
+        editorRef.current.insertImage(photo.imageUrl);
+        editorRef.current.removeImagePlaceholder(placeholderId);
       }
-      setImagePanel({
-        status: 'ready',
-        prompt: plain,
-        imageUrl: photo.imageUrl,
-        meta: {
-          keywords,
-          query,
-          alt: photo.alt,
-          sourceUrl: photo.sourceUrl,
-          photographer: photo.photographer,
-          photographerUrl: photo.photographerUrl,
-        },
-        inserted,
-      });
     } catch (error: any) {
       const message = error?.message || 'Failed to generate image';
-      setImagePanel({ status: 'error', prompt: plain, error: message });
+      if (placeholderIdRef.current) {
+        editorRef.current.removeImagePlaceholder(placeholderIdRef.current);
+      }
+      alert(message);
     }
+    placeholderIdRef.current = null;
+    setIsImageLoading(false);
   };
-
-  const insertGeneratedImage = () => {
-    if (imagePanel.status !== 'ready' || !imagePanel.imageUrl) return;
-    editorRef.current?.insertImage(imagePanel.imageUrl);
-    setImagePanel(prev => (
-      prev.status === 'ready' ? { ...prev, inserted: true } : prev
-    ));
-  };
-
-  const dismissImagePanel = () => setImagePanel(initialImagePanel);
 
   const handleSlashOption = (option: 'continue' | 'image') => {
     if (option === 'continue') { hideSlashMenu(); handleGenerate('continue'); }
@@ -264,9 +237,6 @@ export function useEditorController() {
     slashMenu,
     showSlashMenuAt,
     hideSlashMenu,
-    imagePanel,
-    insertGeneratedImage,
-    dismissImagePanel,
     handleGenerateImage,
     handleSlashOption,
     handleMarkToggle,
