@@ -4,8 +4,8 @@ import {
   Wand2, StopCircle, AlertCircle, PenLine, Sparkles, 
   Settings, ChevronLeft, ChevronRight, Check, HelpCircle, Save, FileText, FileDown,
   Bold, Italic, Underline, Strikethrough, Subscript, Superscript,
-  Quote, List as ListIcon, ListOrdered, Code, SquareCode, Link2, Link2Off, Image as ImageIcon,
-  Minus, Undo2, Redo2, Indent, Outdent
+  Quote, List as ListIcon, ListOrdered, SquareCode, Image as ImageIcon,
+  Minus, Undo2, Redo2
 } from 'lucide-react';
 import ProseMirrorEditor, { ProseMirrorEditorHandle } from './components/ProseMirrorEditor';
 import { editorMachine } from './machines/editorMachine';
@@ -477,40 +477,7 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 md:flex-row md:items-center">
-            <div className="flex items-center gap-3 flex-1">
-              <input
-                value={title}
-                onChange={(e) => { setTitle(e.target.value); setTitleEdited(true); }}
-                placeholder="Untitled document"
-                className={`flex-1 bg-transparent text-xl md:text-2xl font-semibold focus:outline-none ${settings.darkMode ? 'text-slate-100 placeholder-slate-500' : 'text-slate-900 placeholder-slate-400'}`}
-              />
-              <button
-                onClick={saveDocument}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-sm ${settings.darkMode ? 'bg-indigo-600/90 hover:bg-indigo-500 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white'}`}
-                title="Save document"
-              >
-                <Save className="w-4 h-4" />
-                <span className="hidden sm:inline">Save</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={exportToDocx}
-                className={`p-2 rounded-xl border transition-colors ${settings.darkMode ? 'border-slate-700 text-slate-200 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                title="Export as DOCX"
-              >
-                <FileText className="w-4 h-4" />
-              </button>
-              <button
-                onClick={exportToPdf}
-                className={`p-2 rounded-xl border transition-colors ${settings.darkMode ? 'border-slate-700 text-slate-200 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                title="Export as PDF"
-              >
-                <FileDown className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+          {/* Sub-header removed — title and actions consolidated in main header */}
         </div>
       </header>
 
@@ -598,21 +565,17 @@ const App: React.FC = () => {
                         {renderToolbarButton(Strikethrough, 'Strikethrough', () => handleMarkToggle('strike'))}
                         {renderToolbarButton(Subscript, 'Subscript', () => handleMarkToggle('subscript'))}
                         {renderToolbarButton(Superscript, 'Superscript', () => handleMarkToggle('superscript'))}
-                        {renderToolbarButton(Code, 'Inline code', () => handleMarkToggle('code'))}
                       </div>
                       <span className="hidden md:block h-8 w-px bg-slate-200 dark:bg-slate-700" />
                       <div className="flex items-center gap-1 flex-wrap">
                         {renderToolbarButton(ListIcon, 'Bulleted list', handleBulletList)}
                         {renderToolbarButton(ListOrdered, 'Numbered list', handleOrderedList)}
-                        {renderToolbarButton(Indent, 'Indent', handleSinkList)}
-                        {renderToolbarButton(Outdent, 'Outdent', handleLiftList)}
                         {renderToolbarButton(Quote, 'Block quote', handleBlockquote)}
                         {renderToolbarButton(SquareCode, 'Code block', handleCodeBlock)}
                       </div>
                       <span className="hidden md:block h-8 w-px bg-slate-200 dark:bg-slate-700" />
                       <div className="flex items-center gap-1 flex-wrap">
-                        {renderToolbarButton(Link2, 'Insert link', handleInsertLink)}
-                        {renderToolbarButton(Link2Off, 'Remove link', handleRemoveLink)}
+                        {/* Inline code, indent/outdent, and link buttons removed per UI cleanup */}
                         {renderToolbarButton(ImageIcon, 'Insert image', handleInsertImage)}
                         {renderToolbarButton(Minus, 'Horizontal rule', handleInsertRule)}
                       </div>
