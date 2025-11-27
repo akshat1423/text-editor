@@ -5,11 +5,11 @@ import {
   Settings, ChevronLeft, ChevronRight, Check, HelpCircle, Save, FileText, FileDown,
   Bold, Italic, Underline, Strikethrough, Subscript, Superscript,
   Quote, List as ListIcon, ListOrdered, Code, SquareCode, Link2, Link2Off, Image as ImageIcon,
-  Minus, Undo2, Redo2, Heading1, Heading2, Heading3, Pilcrow, Indent, Outdent
+  Minus, Undo2, Redo2, Indent, Outdent
 } from 'lucide-react';
 import ProseMirrorEditor, { ProseMirrorEditorHandle } from './components/ProseMirrorEditor';
 import { editorMachine } from './machines/editorMachine';
-import { generateVariants, generateImageFromContext } from './services/geminiService';
+import { generateVariants, generateImageFromContext, generateTitleFromContent } from './services/geminiService';
 import { UserSettings, GenerationMode } from './types';
 
 const ShortcutTooltip = ({ shortcut, description }: { shortcut: string, description: string }) => (
@@ -67,11 +67,12 @@ const App: React.FC = () => {
   const hideSlashMenu = () => setSlashMenu(prev => prev.visible ? { ...prev, visible: false } : prev);
 
   const handleMarkToggle = (mark: string) => {
+    // Debug: log requested mark and whether editor ref exists
+    // eslint-disable-next-line no-console
+      console.log('[Toolbar] handleMarkToggle', { mark, hasEditor: !!editorRef.current });
     editorRef.current?.toggleMark(mark);
   };
 
-  const handleHeading = (level: number) => editorRef.current?.setHeading(level);
-  const handleParagraph = () => editorRef.current?.setParagraph();
   const handleBulletList = () => editorRef.current?.toggleBulletList();
   const handleOrderedList = () => editorRef.current?.toggleOrderedList();
   const handleBlockquote = () => editorRef.current?.toggleBlockquote();
@@ -240,6 +241,9 @@ const App: React.FC = () => {
   };
 
   const handleEditorShortcut = (action: 'generate' | 'line' | 'paragraph' | 'prev' | 'next') => {
+      // debug: log shortcut calls
+      // eslint-disable-next-line no-console
+      console.log('[Shortcut] handleEditorShortcut', action);
       switch(action) {
           case 'generate':
               if (state.matches('generating')) handleStop();
@@ -259,6 +263,25 @@ const App: React.FC = () => {
               break;
       }
   };
+
+  // Global keyboard fallback: if editor is NOT focused, allow Mod+Enter to trigger generate
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        const editorDom = editorRef.current?.view?.dom as HTMLElement | undefined;
+        const active = document.activeElement as HTMLElement | null;
+        const editorHasFocus = editorDom ? editorDom.contains(active) : false;
+        if (!editorHasFocus) {
+          // eslint-disable-next-line no-console
+          console.log('[Global] Mod+Enter pressed (editor not focused)');
+          e.preventDefault();
+          handleEditorShortcut('generate');
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Override replaceRange logic for cycling
   const safeCycle = (direction: 'next' | 'prev') => {
@@ -298,9 +321,20 @@ const App: React.FC = () => {
     const plain = content.replace(/\s+/g, ' ').trim();
     const words = plain.split(/\s+/).filter(Boolean);
     if (words.length >= 15 && !title) {
-      // Use first 6 words as title
-      const t = words.slice(0, Math.min(6, words.length)).join(' ');
-      setTitle(t);
+      (async () => {
+        try {
+          const aiTitle = await generateTitleFromContent(content);
+          if (aiTitle) {
+            setTitle(aiTitle);
+          } else {
+            const t = words.slice(0, Math.min(6, words.length)).join(' ');
+            setTitle(t);
+          }
+        } catch (e) {
+          const t = words.slice(0, Math.min(6, words.length)).join(' ');
+          setTitle(t);
+        }
+      })();
     }
   };
 
@@ -354,16 +388,13 @@ const App: React.FC = () => {
       <header className={`flex-none backdrop-blur-md border-b z-20 transition-colors ${settings.darkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white/80 border-slate-200'}`}>
         <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-1.5 rounded-lg shadow-sm">
-                  <PenLine className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex flex-col">
-                <h1 className={`font-semibold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r ${settings.darkMode ? 'from-slate-100 to-slate-400' : 'from-slate-900 to-slate-600'}`}>
-                    Chronicle AI
-                </h1>
-                <span className="text-xs text-slate-400">AI Writing Studio</span>
-              </div>
+            <div className="flex items-center gap-2 flex-1">
+              <input
+                value={title}
+                onChange={(e) => { setTitle(e.target.value); setTitleEdited(true); }}
+                placeholder="Untitled document"
+                className={`w-full bg-transparent text-lg md:text-xl font-semibold focus:outline-none ${settings.darkMode ? 'text-slate-100 placeholder-slate-500' : 'text-slate-900 placeholder-slate-400'}`}
+              />
             </div>
             <div className="flex flex-wrap items-center gap-3">
               {isGenerating && (
@@ -378,6 +409,28 @@ const App: React.FC = () => {
                       <span>Reviewing ({state.context.selectedIndex + 1}/{state.context.candidates.length})</span>
                   </div>
               )}
+              {/* Save / Export moved into header actions */}
+              <button
+                onClick={saveDocument}
+                className={`p-2 rounded-full transition-colors ${settings.darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+                title="Save document"
+              >
+                <Save className="w-5 h-5" />
+              </button>
+              <button
+                onClick={exportToDocx}
+                className={`p-2 rounded-full transition-colors ${settings.darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+                title="Export as DOCX"
+              >
+                <FileText className="w-5 h-5" />
+              </button>
+              <button
+                onClick={exportToPdf}
+                className={`p-2 rounded-full transition-colors ${settings.darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+                title="Export as PDF"
+              >
+                <FileDown className="w-5 h-5" />
+              </button>
               <div className="relative group">
                 <button
                   className={`p-2 rounded-full transition-colors ${settings.darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
@@ -536,12 +589,7 @@ const App: React.FC = () => {
                     ${settings.darkMode ? 'bg-slate-900/70 border-slate-700 shadow-none' : 'bg-white border-slate-100 shadow-slate-200/50'}`}>
                     <div className={`w-full flex flex-wrap items-center gap-2 border-b ${settings.darkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-slate-50 border-slate-100'} px-4 md:px-8 py-3`}
                     >
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {renderToolbarButton(Pilcrow, 'Paragraph', handleParagraph)}
-                        {renderToolbarButton(Heading1, 'Heading 1', () => handleHeading(1))}
-                        {renderToolbarButton(Heading2, 'Heading 2', () => handleHeading(2))}
-                        {renderToolbarButton(Heading3, 'Heading 3', () => handleHeading(3))}
-                      </div>
+                      {/* Paragraph / Heading buttons removed per user request */}
                       <span className="hidden md:block h-8 w-px bg-slate-200 dark:bg-slate-700" />
                       <div className="flex items-center gap-1 flex-wrap">
                         {renderToolbarButton(Bold, 'Bold', () => handleMarkToggle('strong'))}
@@ -578,7 +626,7 @@ const App: React.FC = () => {
                     <div className="px-6 md:px-10 py-10">
                       <ProseMirrorEditor 
                         ref={editorRef} 
-                        initialContent="<p>The dawn broke over the horizon, painting the sky in hues of violent violet and burning orange...</p>"
+                        initialContent="<p>The dawn broke over the horizon, painting the sky in hues of violent violet and burning orange</p>"
                         isReadOnly={isGenerating}
                         isGenerating={isGenerating}
                         isReviewing={isReviewing}

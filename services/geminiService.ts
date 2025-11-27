@@ -43,13 +43,18 @@ export const generateVariants = async (
   const systemInstruction = getSystemInstruction(settings);
   const lengthInstruction = getLengthInstruction(settings.length, mode);
 
+  // If the provided currentText has more than 15 words, use the full body
+  // as context. Otherwise, fall back to the last ~2000 characters for brevity.
+  const wordCount = (currentText || '').split(/\s+/).filter(Boolean).length;
+  const contextText = wordCount > 15 ? currentText : currentText.slice(-2000);
+
   const prompt = `
 ${systemInstruction}
 ${lengthInstruction}
 
 ---
 Current Text:
-${currentText.slice(-2000)} 
+${contextText}
 ---
 Continuation:
   `.trim();
@@ -124,4 +129,22 @@ export const generateImageFromContext = async (context: string): Promise<string>
 
   const mimeType = inlineData.mimeType || 'image/png';
   return `data:${mimeType};base64,${inlineData.data}`;
+};
+
+export const generateTitleFromContent = async (content: string): Promise<string> => {
+  if (!apiKey) throw new Error('API Key is missing.');
+
+  const model = 'gemini-2.5-flash';
+  const prompt = `Create a concise, descriptive title (5-8 words) for the following document. Return ONLY the title on a single line.\n\nDocument:\n${content.trim()}`;
+
+  const res = await ai.models.generateContent({
+    model,
+    contents: prompt,
+    config: { temperature: 0.2 }
+  } as any);
+
+  // Prefer `.text` if provided, otherwise try candidates
+  const raw = (res as any).text || (res as any)?.response?.candidates?.[0]?.text || '';
+  const title = String(raw || '').split(/\r?\n/)[0].trim();
+  return title;
 };

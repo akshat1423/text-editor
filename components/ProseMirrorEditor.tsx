@@ -35,6 +35,14 @@ baseNodes.image = {
 
 // Extend marks: add strike and subscript
 const baseMarks = { ...basicSchema.spec.marks } as any;
+
+// Ensure common marks exist (explicitly include em and strong)
+if (!baseMarks.em && (basicSchema.spec.marks as any).em) {
+    baseMarks.em = (basicSchema.spec.marks as any).em;
+}
+if (!baseMarks.strong && (basicSchema.spec.marks as any).strong) {
+    baseMarks.strong = (basicSchema.spec.marks as any).strong;
+}
 baseMarks.strike = {
     parseDOM: [ { tag: 's' }, { tag: 'del' }, { style: 'text-decoration', getAttrs: (value: any) => value === 'line-through' ? {} : false } ],
     toDOM() { return ['s', 0]; }
@@ -218,8 +226,20 @@ export const ProseMirrorEditor = forwardRef<ProseMirrorEditorHandle, ProseMirror
       toggleMark: (markName: string) => {
           const view = viewRef.current;
           if (!view) return;
-          const mark = mySchema.marks[markName];
-          if (!mark) return;
+
+          // Support common aliases (bold/italic) for convenience
+          const aliasMap: Record<string, string> = {
+            'bold': 'strong',
+            'italic': 'em'
+          };
+          const resolvedName = mySchema.marks[markName] ? markName : (aliasMap[markName] || markName);
+          const mark = mySchema.marks[resolvedName];
+          if (!mark) {
+              // Debug hint when mark isn't available
+              // eslint-disable-next-line no-console
+              console.log('[Editor] toggleMark: unknown mark', markName, 'resolved to', resolvedName, 'availableMarks=', Object.keys(mySchema.marks));
+              return;
+          }
           toggleMark(mark)(view.state, view.dispatch);
           view.focus();
       },
@@ -340,6 +360,18 @@ export const ProseMirrorEditor = forwardRef<ProseMirrorEditorHandle, ProseMirror
                 "Mod-Enter": (state, dispatch) => {
                     onShortcutRef.current?.('generate');
                     return true;
+                },
+                "Mod-b": (state, dispatch) => {
+                    // Toggle bold (strong)
+                    const mark = mySchema.marks['strong'] || mySchema.marks['bold'];
+                    if (mark) { toggleMark(mark)(state, dispatch); return true; }
+                    return false;
+                },
+                "Mod-i": (state, dispatch) => {
+                    // Toggle italic (em)
+                    const mark = mySchema.marks['em'] || mySchema.marks['italic'];
+                    if (mark) { toggleMark(mark)(state, dispatch); return true; }
+                    return false;
                 },
                 "Mod-1": (state, dispatch) => {
                     onShortcutRef.current?.('line');
