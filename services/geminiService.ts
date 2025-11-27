@@ -1,8 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { UserSettings, GenerationMode } from "../types";
 
-// Ensure API key is present
-const apiKey = process.env.API_KEY || '';
+// Ensure API key is present (Vite exposes env vars via import.meta.env)
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 
 const ai = new GoogleGenAI({ apiKey });
 
