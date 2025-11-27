@@ -1,7 +1,6 @@
 import React from 'react';
 import { Wand2, StopCircle, AlertCircle, Sparkles, Settings, Check, HelpCircle, Save, FileText, FileDown } from 'lucide-react';
 import Toolbar from './Toolbar';
-import ImageFlowPanel from './ImageFlowPanel';
 import ProseMirrorEditor from './ProseMirrorEditor';
 import type { EditorController } from '../hooks/useEditorController';
 
@@ -26,6 +25,7 @@ export const HeaderSection: React.FC<{ controller: EditorController }> = ({ cont
     saveDocument,
     exportToDocx,
     exportToPdf,
+    handleGenerateImage,
     showSettings,
     setShowSettings,
     handleGenerate,
@@ -72,6 +72,8 @@ export const HeaderSection: React.FC<{ controller: EditorController }> = ({ cont
               </div>
             </div>
 
+            <button onClick={handleGenerateImage} className={`p-2 rounded-full transition-colors ${settings.darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`} title="Generate image"><svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><circle cx="12" cy="7" r="4"/></svg></button>
+
             <button onClick={() => setShowSettings(!showSettings)} className={`p-2 rounded-full transition-colors ${settings.darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`} title="Settings"><Settings className="w-5 h-5" /></button>
 
             <button onClick={isGenerating ? handleStop : () => handleGenerate('continue')} className={`group flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-300 shadow-sm ${isGenerating ? 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 border border-slate-200 dark:border-slate-700' : 'bg-slate-900 dark:bg-indigo-600 text-white hover:bg-indigo-600 dark:hover:bg-indigo-500 hover:shadow-lg hover:-translate-y-0.5'}`}>
@@ -100,30 +102,29 @@ export const EditorSurface: React.FC<{ controller: EditorController }> = ({ cont
     handleOrderedList,
     handleBlockquote,
     handleCodeBlock,
-    handleInsertImage,
+    handleGenerateImage,
     handleInsertRule,
     handleUndo,
     handleRedo,
     charCount,
     wordCount,
-    imageFlow,
-    imageError,
-    handleStartImageGeneration,
-    cancelImageFlow,
+    imagePanel,
+    insertGeneratedImage,
+    dismissImagePanel,
   } = controller;
 
   return (
     <main className="flex-1 overflow-y-auto relative scroll-smooth">
       <div className="max-w-4xl mx-auto px-6 py-12 pb-32">
         <div className={`rounded-2xl shadow-sm border min-h-[60vh] relative transition-colors duration-300 ${settings.darkMode ? 'bg-slate-900/70 border-slate-700 shadow-none' : 'bg-white border-slate-100 shadow-slate-200/50'}`}>
-          <Toolbar
+            <Toolbar
             settings={settings}
-            onToggleMark={handleMarkToggle}
-            onBulletList={handleBulletList}
-            onOrderedList={handleOrderedList}
-            onBlockquote={handleBlockquote}
-            onCodeBlock={handleCodeBlock}
-            onInsertImage={handleInsertImage}
+              onToggleMark={handleMarkToggle}
+              onBulletList={handleBulletList}
+              onOrderedList={handleOrderedList}
+              onBlockquote={handleBlockquote}
+              onCodeBlock={handleCodeBlock}
+              onInsertImage={handleGenerateImage}
             onInsertRule={handleInsertRule}
             onUndo={handleUndo}
             onRedo={handleRedo}
@@ -149,15 +150,101 @@ export const EditorSurface: React.FC<{ controller: EditorController }> = ({ cont
           </div>
         </div>
 
-        <ImageFlowPanel
-          imageFlow={imageFlow}
-          imageError={imageError}
-          settings={settings}
-          onStart={handleStartImageGeneration}
-          onCancel={cancelImageFlow}
+        <ImagePreviewPanel
+          controller={controller}
+          imagePanel={imagePanel}
+          insertGeneratedImage={insertGeneratedImage}
+          dismissImagePanel={dismissImagePanel}
         />
       </div>
     </main>
+  );
+};
+
+const ImagePreviewPanel: React.FC<{
+  controller: EditorController;
+  imagePanel: EditorController['imagePanel'];
+  insertGeneratedImage: () => void;
+  dismissImagePanel: () => void;
+}> = ({ controller, imagePanel, insertGeneratedImage, dismissImagePanel }) => {
+  const { settings, handleGenerateImage } = controller;
+  if (!imagePanel || imagePanel.status === 'idle') return null;
+
+  const cardClasses = settings.darkMode
+    ? 'bg-slate-900/70 border-slate-800 text-slate-100'
+    : 'bg-white border-slate-100 text-slate-800';
+
+  const statusLabel = {
+    loading: 'Generating illustration via Freepik Mystic...',
+    ready: 'Preview ready — insert directly into the document when you are happy with it.',
+    error: 'We were unable to fetch an image for this request.',
+  } as const;
+
+  const shortTaskId = imagePanel.taskId ? `${imagePanel.taskId.slice(0, 6)}...${imagePanel.taskId.slice(-4)}` : null;
+
+  return (
+    <div className="mt-8">
+      <div className={`rounded-2xl border p-5 shadow-sm ${cardClasses}`}>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <p className="text-sm font-semibold">Image preview</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{statusLabel[imagePanel.status]}</p>
+          </div>
+          {shortTaskId && (
+            <span className="text-[10px] uppercase tracking-wide text-slate-400">Task {shortTaskId}</span>
+          )}
+        </div>
+
+        <div className={`rounded-xl border overflow-hidden ${settings.darkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-100 bg-slate-50'}`}>
+          {imagePanel.status === 'loading' && (
+            <div className="image-skeleton h-64 w-full" aria-live="polite" aria-label="Generating image" />
+          )}
+          {imagePanel.status === 'ready' && imagePanel.imageUrl && (
+            <img src={imagePanel.imageUrl} alt="Generated illustration" className="w-full h-64 object-cover" loading="lazy" />
+          )}
+          {imagePanel.status === 'error' && (
+            <div className="h-64 flex flex-col items-center justify-center text-sm text-red-500 gap-2">
+              <span>{imagePanel.error}</span>
+              <span className="text-xs text-red-400">Review the prompt and try again.</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-wrap justify-end gap-2 mt-4">
+          <button
+            onClick={dismissImagePanel}
+            className={`px-4 py-2 text-sm font-medium rounded-full border ${settings.darkMode ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-100'}`}
+          >
+            Dismiss
+          </button>
+
+          {imagePanel.status === 'ready' && (
+            <button
+              onClick={insertGeneratedImage}
+              className="px-4 py-2 text-sm font-semibold rounded-full bg-indigo-600 text-white hover:bg-indigo-500 shadow"
+            >
+              Insert image
+            </button>
+          )}
+
+          {imagePanel.status === 'error' && (
+            <button
+              onClick={handleGenerateImage}
+              className="px-4 py-2 text-sm font-semibold rounded-full bg-red-500 text-white hover:bg-red-400 shadow"
+            >
+              Try again
+            </button>
+          )}
+
+          {imagePanel.status === 'loading' && (
+            <div className="flex items-center text-xs font-medium text-indigo-500">
+              <Sparkles className="w-4 h-4 mr-1 animate-spin" />
+              Summoning art...
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 

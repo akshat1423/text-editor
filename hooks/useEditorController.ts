@@ -1,9 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMachine } from '@xstate/react';
 import { editorMachine } from '../machines/editorMachine';
-import { generateVariants, generateImageFromContext, generateTitleFromContent } from '../services/geminiService';
+import { generateVariants, generateTitleFromContent } from '../services/geminiService';
+import { generateMysticImageFromContext } from '../services/freepikService';
 import { UserSettings, GenerationMode } from '../types';
 import type { ProseMirrorEditorHandle } from '../components/ProseMirrorEditor';
+
+type ImagePanelState =
+  | { status: 'idle'; prompt?: string; imageUrl?: string; taskId?: string; error?: string }
+  | { status: 'loading'; prompt: string; imageUrl?: string; taskId?: string; error?: string }
+  | { status: 'ready'; prompt: string; imageUrl: string; taskId?: string; error?: string }
+  | { status: 'error'; prompt: string; imageUrl?: string; taskId?: string; error: string };
+
+const initialImagePanel: ImagePanelState = { status: 'idle' };
 
 export function useEditorController() {
   const [state, send] = useMachine(editorMachine);
@@ -23,8 +32,7 @@ export function useEditorController() {
     try { return localStorage.getItem('chronicle-font') || 'raleway'; } catch (e) { return 'raleway'; }
   });
   const [slashMenu, setSlashMenu] = useState<{ visible: boolean; x: number; y: number }>({ visible: false, x: 0, y: 0 });
-  const [imageFlow, setImageFlow] = useState<'idle' | 'select' | 'loading'>('idle');
-  const [imageError, setImageError] = useState<string | null>(null);
+  const [imagePanel, setImagePanel] = useState<ImagePanelState>(initialImagePanel);
 
   // Streaming Refs
   const isStreamingRef = useRef(false);
@@ -132,21 +140,38 @@ export function useEditorController() {
   const handleUndo = () => editorRef.current?.undo();
   const handleRedo = () => editorRef.current?.redo();
 
-  const startImageFlow = () => { hideSlashMenu(); setImageError(null); setImageFlow('select'); };
-  const cancelImageFlow = () => { setImageFlow('idle'); setImageError(null); };
-
-  const handleStartImageGeneration = async () => {
-    const selectionRaw = editorRef.current?.getSelectionText() || ''; let selectionText = selectionRaw.trim();
-    if (!selectionText) {
-      const fallbackHtml = editorRef.current?.getContent() || ''; const temp = document.createElement('div'); temp.innerHTML = fallbackHtml; const plain = temp.textContent?.trim() || ''; const words = plain.split(/\s+/).filter(Boolean); selectionText = words.slice(Math.max(0, words.length - 60)).join(' ');
+  const handleGenerateImage = async () => {
+    hideSlashMenu();
+    const html = editorRef.current?.getContent() || '';
+    const temp = document.createElement('div'); temp.innerHTML = html;
+    const plain = temp.textContent?.trim() || '';
+    if (!plain) {
+      alert('Please add some text to your document before generating an image.');
+      return;
     }
-    if (!selectionText) { alert('Please add some text to your document before generating an image.'); return; }
-    setImageFlow('loading'); setImageError(null);
-    try { const imageData = await generateImageFromContext(selectionText); editorRef.current?.insertImage(imageData); setImageFlow('idle'); }
-    catch (error: any) { setImageError(error?.message || 'Failed to generate image'); setImageFlow('select'); }
+
+    setImagePanel({ status: 'loading', prompt: plain });
+    try {
+      const { imageUrl, taskId } = await generateMysticImageFromContext(plain);
+      setImagePanel({ status: 'ready', prompt: plain, imageUrl, taskId });
+    } catch (error: any) {
+      const message = error?.message || 'Failed to generate image';
+      setImagePanel({ status: 'error', prompt: plain, error: message });
+    }
   };
 
-  const handleSlashOption = (option: 'continue' | 'image') => { if (option === 'continue') { hideSlashMenu(); handleGenerate('continue'); } else { startImageFlow(); } };
+  const insertGeneratedImage = () => {
+    if (imagePanel.status !== 'ready' || !imagePanel.imageUrl) return;
+    editorRef.current?.insertImage(imagePanel.imageUrl);
+    setImagePanel(initialImagePanel);
+  };
+
+  const dismissImagePanel = () => setImagePanel(initialImagePanel);
+
+  const handleSlashOption = (option: 'continue' | 'image') => {
+    if (option === 'continue') { hideSlashMenu(); handleGenerate('continue'); }
+    else { handleGenerateImage(); }
+  };
 
   // Title generation
   const [title, setTitle] = useState<string>('');
@@ -203,10 +228,10 @@ export function useEditorController() {
     slashMenu,
     showSlashMenuAt,
     hideSlashMenu,
-    imageFlow,
-    imageError,
-    cancelImageFlow,
-    handleStartImageGeneration,
+    imagePanel,
+    insertGeneratedImage,
+    dismissImagePanel,
+    handleGenerateImage,
     handleSlashOption,
     handleMarkToggle,
     handleBulletList,

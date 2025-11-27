@@ -31,3 +31,15 @@ export interface GenerationContext {
   selectedIndex: number;
   generationRange: { from: number; to: number } | null;
 }
+
+export interface ImageFile {
+  data: string; // Base64 string without the data URL prefix
+  mimeType: string;
+  previewUrl?: string;
+}
+
+export type MysticAspectRatio = 'widescreen_16_9' | 'square_1_1' | 'portrait_3_4' | 'portrait_9_16';
+
+export interface ImageGenerationConfig {
+  aspectRatio?: MysticAspectRatio;
+}

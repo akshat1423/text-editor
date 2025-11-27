@@ -6,6 +6,12 @@ const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 
 const ai = new GoogleGenAI({ apiKey });
 
+const ensureApiKey = () => {
+  if (!apiKey) {
+    throw new Error("API Key is missing.");
+  }
+};
+
 const getSystemInstruction = (settings: UserSettings) => {
   const toneMap = {
     professional: "You are a professional editor. Use formal, concise, and business-appropriate language.",
@@ -35,9 +41,7 @@ export const generateVariants = async (
   mode: GenerationMode,
   onFirstToken?: (token: string) => void
 ): Promise<string[]> => {
-  if (!apiKey) {
-    throw new Error("API Key is missing.");
-  }
+  ensureApiKey();
 
   const model = 'gemini-2.5-flash';
   const systemInstruction = getSystemInstruction(settings);
@@ -104,35 +108,8 @@ Continuation:
   return Promise.all(promises);
 };
 
-export const generateImageFromContext = async (context: string): Promise<string> => {
-  if (!apiKey) {
-    throw new Error("API Key is missing.");
-  }
-
-  const model = 'models/gemini-2.5-flash-image';
-  const prompt = `Create an illustrative, high-quality image that visually complements the following passage:\n${context.trim()}`;
-
-  const result = await ai.models.generateContent({
-    model,
-    contents: prompt,
-    config: {
-      responseMimeType: 'image/png'
-    }
-  } as any);
-
-  const inlineData = (result as any)?.response?.candidates?.[0]?.content?.parts?.find((part: any) => part.inlineData)?.inlineData
-    || (result as any)?.candidates?.[0]?.content?.parts?.find((part: any) => part.inlineData)?.inlineData;
-
-  if (!inlineData?.data) {
-    throw new Error('Image generation failed.');
-  }
-
-  const mimeType = inlineData.mimeType || 'image/png';
-  return `data:${mimeType};base64,${inlineData.data}`;
-};
-
 export const generateTitleFromContent = async (content: string): Promise<string> => {
-  if (!apiKey) throw new Error('API Key is missing.');
+  ensureApiKey();
 
   const model = 'gemini-2.5-flash';
   const prompt = `Create a concise, descriptive title (5-8 words) for the following document. Return ONLY the title on a single line.\n\nDocument:\n${content.trim()}`;
@@ -143,7 +120,6 @@ export const generateTitleFromContent = async (content: string): Promise<string>
     config: { temperature: 0.2 }
   } as any);
 
-  // Prefer `.text` if provided, otherwise try candidates
   const raw = (res as any).text || (res as any)?.response?.candidates?.[0]?.text || '';
   const title = String(raw || '').split(/\r?\n/)[0].trim();
   return title;
