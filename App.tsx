@@ -37,6 +37,7 @@ const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [charCount, setCharCount] = useState(0);
+  const [wordCount, setWordCount] = useState(0);
   const [slashMenu, setSlashMenu] = useState<{ visible: boolean; x: number; y: number }>({ visible: false, x: 0, y: 0 });
   const [imageFlow, setImageFlow] = useState<'idle' | 'select' | 'loading'>('idle');
   const [imageError, setImageError] = useState<string | null>(null);
@@ -382,7 +383,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className={`flex flex-col h-screen overflow-hidden font-sans selection:bg-indigo-100 selection:text-indigo-900 ${settings.darkMode ? 'bg-slate-900 text-slate-100 selection:bg-indigo-900 selection:text-white' : 'bg-slate-50 text-slate-900'}`}>
+    <div className={`flex flex-col h-screen overflow-auto font-sans selection:bg-indigo-100 selection:text-indigo-900 ${settings.darkMode ? 'bg-slate-900 text-slate-100 selection:bg-indigo-900 selection:text-white' : 'bg-slate-50 text-slate-900'}`}>
       
       {/* Header */}
       <header className={`flex-none backdrop-blur-md border-b z-20 transition-colors ${settings.darkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white/80 border-slate-200'}`}>
@@ -552,8 +553,8 @@ const App: React.FC = () => {
           {/* Editor */}
           <main className="flex-1 overflow-y-auto relative scroll-smooth">
             <div className="max-w-4xl mx-auto px-6 py-12 pb-32">
-                <div className={`rounded-2xl shadow-sm border min-h-[800px] relative transition-colors duration-300 
-                    ${settings.darkMode ? 'bg-slate-900/70 border-slate-700 shadow-none' : 'bg-white border-slate-100 shadow-slate-200/50'}`}>
+                <div className={`rounded-2xl shadow-sm border min-h-[60vh] relative transition-colors duration-300 
+                  ${settings.darkMode ? 'bg-slate-900/70 border-slate-700 shadow-none' : 'bg-white border-slate-100 shadow-slate-200/50'}`}>
                     <div className={`w-full flex flex-wrap items-center gap-2 border-b ${settings.darkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-slate-50 border-slate-100'} px-4 md:px-8 py-3`}
                     >
                       {/* Paragraph / Heading buttons removed per user request */}
@@ -586,7 +587,7 @@ const App: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="px-6 md:px-10 py-10">
+                    <div className="px-6 md:px-10 py-10 overflow-auto max-h-[60vh]">
                       <ProseMirrorEditor 
                         ref={editorRef} 
                         initialContent="<p>The dawn broke over the horizon, painting the sky in hues of violent violet and burning orange</p>"
@@ -599,13 +600,21 @@ const App: React.FC = () => {
                           const content = editorRef.current?.getContent() || '';
                           generateTitleIfNeeded(content);
                         }}
-                        onContentChange={(content) => setCharCount(content.length)}
+                        onContentChange={(content) => {
+                          // content is HTML; derive plain text for accurate word/char counts
+                          const temp = document.createElement('div');
+                          temp.innerHTML = content || '';
+                          const plain = temp.textContent || temp.innerText || '';
+                          setCharCount(plain.length);
+                          const words = plain.trim().split(/\s+/).filter(Boolean);
+                          setWordCount(words.length);
+                        }}
                         onSlashTrigger={showSlashMenuAt}
                         onSlashDismiss={hideSlashMenu}
                       />
                     </div>
                     <div className={`border-t px-6 md:px-10 py-3 text-sm text-right ${settings.darkMode ? 'border-slate-800 text-slate-400' : 'border-slate-100 text-slate-500'}`}>
-                      {charCount.toLocaleString()} characters
+                      {charCount.toLocaleString()} characters • {wordCount.toLocaleString()} words
                     </div>
                 </div>
                     {imageFlow !== 'idle' && (
