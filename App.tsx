@@ -38,6 +38,13 @@ const App: React.FC = () => {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [charCount, setCharCount] = useState(0);
   const [wordCount, setWordCount] = useState(0);
+  const [selectedFont, setSelectedFont] = useState<string>(() => {
+    try {
+      return localStorage.getItem('chronicle-font') || 'raleway';
+    } catch (e) {
+      return 'raleway';
+    }
+  });
   const [slashMenu, setSlashMenu] = useState<{ visible: boolean; x: number; y: number }>({ visible: false, x: 0, y: 0 });
   const [imageFlow, setImageFlow] = useState<'idle' | 'select' | 'loading'>('idle');
   const [imageError, setImageError] = useState<string | null>(null);
@@ -382,8 +389,13 @@ const App: React.FC = () => {
     }, 300);
   };
 
+  useEffect(() => {
+    // Persist selected font
+    try { localStorage.setItem('chronicle-font', selectedFont); } catch (e) {}
+  }, [selectedFont]);
+
   return (
-    <div className={`flex flex-col h-screen overflow-auto font-sans selection:bg-indigo-100 selection:text-indigo-900 ${settings.darkMode ? 'bg-slate-900 text-slate-100 selection:bg-indigo-900 selection:text-white' : 'bg-slate-50 text-slate-900'}`}>
+    <div className={`flex flex-col h-screen overflow-auto selection:bg-indigo-100 selection:text-indigo-900 ${settings.darkMode ? 'bg-slate-900 text-slate-100 selection:bg-indigo-900 selection:text-white' : 'bg-slate-50 text-slate-900' } ${selectedFont === 'inter' ? 'font-inter' : selectedFont === 'lora' ? 'font-lora' : 'font-raleway'}`}>
       
       {/* Header */}
       <header className={`flex-none backdrop-blur-md border-b z-20 transition-colors ${settings.darkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white/80 border-slate-200'}`}>
@@ -453,6 +465,7 @@ const App: React.FC = () => {
               >
                   <Settings className="w-5 h-5" />
               </button>
+              
               <button
                 onClick={isGenerating ? handleStop : () => handleGenerate('continue')}
                 className={`
@@ -532,6 +545,21 @@ const App: React.FC = () => {
                             className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                           />
                           <span className="text-sm font-medium w-6 text-slate-700 dark:text-slate-300">{settings.variantCount}</span>
+                      </div>
+                  </div>
+
+                  <div>
+                      <label className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Font</label>
+                      <div className="mt-2">
+                        <select
+                          value={selectedFont}
+                          onChange={(e) => setSelectedFont(e.target.value)}
+                          className={`w-full text-sm rounded-md border px-2 py-1 bg-transparent ${settings.darkMode ? 'border-slate-700 text-slate-200' : 'border-slate-200 text-slate-700'}`}
+                        >
+                          <option value="raleway">Raleway (sans)</option>
+                          <option value="inter">Inter (sans)</option>
+                          <option value="lora">Lora (serif)</option>
+                        </select>
                       </div>
                   </div>
 

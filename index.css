@@ -27,6 +27,31 @@
     font-family: 'Raleway', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   }
 
+  /* Font helper classes for runtime switching */
+  .font-raleway { font-family: 'Raleway', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+  .font-inter { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+  .font-lora { font-family: 'Lora', Georgia, 'Times New Roman', serif; }
+  
+    /* Restore list markers inside the ProseMirror editable area.
+       Tailwind's preflight removes list-style for elements with classes; ProseMirror lists
+       can end up without visible markers. These rules force visible bullets/numbers. */
+    .ProseMirror ul {
+      list-style-type: disc !important;
+      list-style-position: outside !important;
+      margin-left: 1.25rem;
+      padding-left: 1.25rem;
+    }
+    .ProseMirror ol {
+      list-style-type: decimal !important;
+      list-style-position: outside !important;
+      margin-left: 1.25rem;
+      padding-left: 1.25rem;
+    }
+    .ProseMirror li {
+      margin-top: 0.25rem;
+      margin-bottom: 0.25rem;
+    }
+
   /* sensible max width for content area */
   .max-w-4xl { max-width: 68rem; }
 }
